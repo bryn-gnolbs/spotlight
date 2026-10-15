@@ -48,7 +48,9 @@ call it a protocol): `getInitialResultSet(terms, cancellable)` returns result id
 
 - `lib/agent/client.js` holds one `Gio.DBusProxy` for `net.genolabs.Agent`. The proxy
   follows the agent starting and stopping (`g_name_owner`); while it is not running,
-  searches return nothing without making a call.
+  searches return nothing without making a call. After a memory's row runs, it
+  tells the agent with `Used({"retrieval", "ids"})` (not awaited, errors ignored), so
+  the long-term memory learns which memories belong together.
 - `lib/core/timing.js` waits for a 120 ms pause in typing. GNOME cancels the search's
   `Gio.Cancellable` on every keystroke, so only the text the user paused on is sent.
 - `lib/memories/model.js` validates the agent's JSON and builds rows (pure functions,
