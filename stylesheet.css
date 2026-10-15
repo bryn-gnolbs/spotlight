@@ -13,6 +13,8 @@
 /* Container, single unified window, dark default. */
 .spotlight-container {
   background-color: rgba(28, 28, 30, 0.85);
+  /* Hairline edge shared with the rest of the genolabs desktop (DESIGN.md). */
+  border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: 36px;
   padding: 10px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
@@ -22,6 +24,7 @@
 /* Light theme overrides applied when the container carries the theme-light class. */
 .spotlight-container.theme-light {
   background-color: rgba(255, 255, 255, 0.88);
+  border-color: rgba(0, 0, 0, 0.08);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
   color: #1d1d1f;
 }

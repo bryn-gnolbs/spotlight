@@ -21,7 +21,7 @@ body:
       description: Exact steps to trigger the issue
       placeholder: |
         1. Enable the extension
-        2. Press Ctrl+Space
+        2. Press Super+Space
         3. See error
     validations:
       required: true

@@ -10,7 +10,7 @@ export function buildAboutPage() {
     }));
     group.add(new Adw.ActionRow({
         title: 'Version',
-        subtitle: '2026.15',
+        subtitle: '2026.15-g1',
     }));
     group.add(new Adw.ActionRow({
         title: 'License',

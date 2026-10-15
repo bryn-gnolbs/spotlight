@@ -1,7 +1,7 @@
 {
-  "uuid": "spotlight@nin",
+  "uuid": "spotlight@genolabs.net",
   "name": "Spotlight",
-  "description": "A compact Spotlight-inspired launcher for GNOME Shell. Press a shortcut, type, and results appear instantly - apps, files ranked by usage, calculator with clipboard copy, system actions like lock and suspend, GNOME Settings panels, and web search from your browser when installed.\n\nOpen with Ctrl+Space (configurable in preferences). Click outside or press Esc to close.",
+  "description": "The main input and output of the genolabs agentic desktop, built on Spotlight by itsnin. Press Super+Space, type, and results appear instantly: apps, files, calculator, system actions, GNOME Settings panels, web search, and the memories kept by the genolabs agent.\n\nClick outside or press Esc to close.",
   "shell-version": [
     "45",
     "46",
@@ -11,7 +11,7 @@
     "50",
     "51"
   ],
-  "url": "https://github.com/itsnin/spotlight",
-  "settings-schema": "org.gnome.shell.extensions.spotlight",
-  "version-name": "2026.15"
+  "url": "https://github.com/bryn-gnolbs/spotlight",
+  "settings-schema": "org.gnome.shell.extensions.genolabs-spotlight",
+  "version-name": "2026.15-g1"
 }

@@ -67,14 +67,14 @@ export function buildShortcutPage(settings) {
 
     const resetRow = new Adw.ActionRow({
         title: 'Reset to default',
-        subtitle: 'Set shortcut to Ctrl+Space',
+        subtitle: 'Set shortcut to Super+Space',
     });
     const resetButton = new Gtk.Button({
         label: 'Reset',
         valign: Gtk.Align.CENTER,
     });
     resetButton.connect('clicked', () => {
-        settings.set_strv('toggle-shortcut', ['<Control>space']);
+        settings.set_strv('toggle-shortcut', ['<Super>space']);
         shortcutLabel.label = formatShortcut(settings.get_strv('toggle-shortcut'));
     });
     resetRow.add_suffix(resetButton);
@@ -85,7 +85,7 @@ export function buildShortcutPage(settings) {
 
 function formatShortcut(shortcutArray) {
     if (!shortcutArray || shortcutArray.length === 0)
-        return 'Not set (will default to Ctrl+Space)';
+        return 'Not set (will default to Super+Space)';
     const shortcut = shortcutArray[0];
     return shortcut
         .replace(/<Super>/g, 'Super+')

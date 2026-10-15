@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
-  <schema id="org.gnome.shell.extensions.spotlight" path="/org/gnome/shell/extensions/spotlight/">
-    <!-- Default is Ctrl+Space. Super+Space has timing issues on some GNOME 50 setups. -->
+  <schema id="org.gnome.shell.extensions.genolabs-spotlight" path="/org/gnome/shell/extensions/genolabs-spotlight/">
+    <!-- Super+Space, like Cmd+Space on a Mac. Stock GNOME also binds it to
+         switching input sources; when that binding is active the grab fails and
+         Spotlight logs how to free the key (see README). -->
     <key name="toggle-shortcut" type="as">
-      <default>['&lt;Control&gt;space']</default>
+      <default>['&lt;Super&gt;space']</default>
       <summary>Toggle shortcut</summary>
-      <description>Keyboard shortcut to open Spotlight. Default is Ctrl+Space.</description>
+      <description>Keyboard shortcut to open Spotlight. Default is Super+Space.</description>
     </key>
     <!-- Appearance theme. Default follows the system style, dark forces dark, light forces light. -->
     <key name="theme-preference" type="s">
