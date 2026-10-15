@@ -132,3 +132,7 @@
 .spotlight-container.theme-light .search-provider-icon {
   color: #6e6e73;
 }
+/* Calculator answers read first: the number in bold, the expression beside it. */
+.spotlight-container .spotlight-math .list-search-result-title StLabel {
+  font-weight: bold;
+}

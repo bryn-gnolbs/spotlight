@@ -3,7 +3,9 @@
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import {SpotlightPopup} from './lib/popup/widget/spotlightPopup.js';
 import {KeybindingManager} from './lib/core/keybinding.js';
-import {MemorySearchProvider, addMemoriesSection, removeMemoriesSection} from './lib/memories/provider.js';
+import {removeSection} from './lib/core/sections.js';
+import {CalculatorDeduplicator, MathSearchProvider, addMathSection} from './lib/math/provider.js';
+import {MemorySearchProvider, addMemoriesSection} from './lib/memories/provider.js';
 
 // Entry point. Keeping enable and disable adjacent makes the cleanup symmetry obvious at a glance.
 export default class SpotlightExtension extends Extension {
@@ -13,6 +15,9 @@ export default class SpotlightExtension extends Extension {
         // Steal the overview search widgets permanently. The overview search stays gone
         // for as long as Spotlight is loaded, which is the whole point of the extension.
         this._popup.stealOverviewSearch();
+        this._math = new MathSearchProvider();
+        addMathSection(this._popup.searchResults, this._math);
+        this._calculatorDeduplicator = new CalculatorDeduplicator(this._popup.searchResults);
         this._memories = new MemorySearchProvider();
         addMemoriesSection(this._popup.searchResults, this._memories);
         this._keybindingManager = new KeybindingManager();
@@ -48,9 +53,14 @@ export default class SpotlightExtension extends Extension {
         this._settings.disconnectObject(this);
         this._keybindingManager.disable();
         this._keybindingManager = null;
-        removeMemoriesSection(this._popup.searchResults, this._memories);
+        removeSection(this._popup.searchResults, this._memories);
         this._memories.destroy();
         this._memories = null;
+        this._calculatorDeduplicator.destroy();
+        this._calculatorDeduplicator = null;
+        removeSection(this._popup.searchResults, this._math);
+        this._math.destroy();
+        this._math = null;
         // Return the stolen widgets to the overview before destroying things so nothing leaks.
         this._popup.returnOverviewSearch();
         this._popup.destroy();

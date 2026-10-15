@@ -14,6 +14,10 @@
 
 ## What this fork adds
 
+- **Inline math.** Type `12*7`, `15% of 80` or `80 + 15%` and the answer is the first
+  result as soon as the expression is complete; Enter copies it as plain digits. A
+  small parser of its own handles arithmetic (never `eval`); anything more (units,
+  currencies, functions) still goes to GNOME Calculator.
 - **Memories.** A section right after Applications that searches what you chose to
   remember with ScreenVision, through the genolabs agent (`net.genolabs.Agent` on the
   session bus). Enter copies the memory's text; the best match also offers its links
@@ -70,7 +74,7 @@ gnome-extensions prefs spotlight@genolabs.net
 |---|---|
 | Open Spotlight | `Super + Space` |
 | Launch app | Type name, `Enter` |
-| Evaluate expression | Type math, `Enter` |
+| Calculate | Type `12*7` or `15% of 80`, `Enter` copies the answer |
 | Lock screen | Type `lock`, `Enter` |
 | Open Wi-Fi settings | Type `wifi`, `Enter` |
 | Search the web | Type query, `Enter` |

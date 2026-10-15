@@ -8,6 +8,7 @@ import System from 'system';
 
 import {AgentClient} from '../lib/agent/client.js';
 import {waitUnlessCancelled} from '../lib/core/timing.js';
+import {displayNumber, evaluate, plainNumber} from '../lib/math/expression.js';
 import {
     isWebLink, linkHost, memoryDetails, memoryName, memoryRows, memoryUsage, parseMemories,
     primaryAction, relativeTime, shorten,
@@ -175,6 +176,62 @@ test('every row of a memory reports that memory as used', () => {
         ['a#image', {retrieval: 'r1', ids: ['a']}],
         ['b', {retrieval: 'r1', ids: ['b']}],
     ]);
+});
+
+// Inline math ---------------------------------------------------------------
+
+const calc = text => {
+    const result = evaluate(text);
+    return result && [plainNumber(result.value), result.expression];
+};
+
+test('evaluate does arithmetic with the usual precedence', () => {
+    assertEqual(calc('12*7'), ['84', '12 × 7']);
+    assertEqual(calc(' 2 + 3 * 4 '), ['14', '2 + 3 × 4']);
+    assertEqual(calc('(2 + 3) * 4'), ['20', '(2 + 3) × 4']);
+    assertEqual(calc('10 / 4'), ['2.5', '10 ÷ 4']);
+    assertEqual(calc('10 - 2 - 3'), ['5', '10 − 2 − 3']);
+    assertEqual(calc('-5 + 2'), ['-3', '−5 + 2']);
+    assertEqual(calc('2^10'), ['1024', '2^10']);
+    assertEqual(calc('2**3**2'), ['512', '2^3^2']);
+    assertEqual(calc('-2^2'), ['-4', '−2^2']);
+    assertEqual(calc('2^-1'), ['0.5', '2^−1']);
+    assertEqual(calc('.5 + 1.25'), ['1.75', '.5 + 1.25']);
+});
+
+test('evaluate accepts the symbols people type', () => {
+    assertEqual(calc('12×7'), ['84', '12 × 7']);
+    assertEqual(calc('12 x 7'), ['84', '12 × 7']);
+    assertEqual(calc('84÷12'), ['7', '84 ÷ 12']);
+    assertEqual(calc('9 − 4'), ['5', '9 − 4']);
+    assertEqual(calc('1,000 * 3'), ['3000', '1,000 × 3']);
+});
+
+test('evaluate reads percentages the way people say them', () => {
+    assertEqual(calc('15% of 80'), ['12', '15% of 80']);
+    assertEqual(calc('80 + 15%'), ['92', '80 + 15%']);
+    assertEqual(calc('80 - 10%'), ['72', '80 − 10%']);
+    assertEqual(calc('80 * 15%'), ['12', '80 × 15%']);
+    assertEqual(calc('15%'), ['0.15', '15%']);
+    assertEqual(calc('(50 + 50) of 2'), null);
+});
+
+test('evaluate ignores text that is not a calculation', () => {
+    for (const text of ['', '42', '-42', '(42)', 'settings', 'firefox 2', '12*', '*12', '(1 + 2', '1 + 2)',
+        '1,5 + 1', '1/0', '0/0', 'x 7', 'sqrt(9)', '2 of 3', 'offset 1+1', '10 usd to aud', 'eval(1+1)', '1;2'])
+        assertEqual([text, evaluate(text)], [text, null]);
+    assertEqual(evaluate(null), null);
+});
+
+test('numbers are copied plain and shown grouped', () => {
+    assertEqual(plainNumber(0.1 + 0.2), '0.3');
+    assertEqual(plainNumber(1234567.5), '1234567.5');
+    assertEqual(plainNumber(-0), '0');
+    assertEqual(plainNumber(2 ** 70), '1.18059162072e+21');
+    assertEqual(displayNumber(1234567.5), '1,234,567.5');
+    assertEqual(displayNumber(-1234), '−1,234');
+    assertEqual(displayNumber(84), '84');
+    assertEqual(displayNumber(2 ** 70), '1.18059162072e+21');
 });
 
 // Typing pause --------------------------------------------------------------
