@@ -7,7 +7,7 @@ import Gio from 'gi://Gio';
 import System from 'system';
 
 import {AgentClient} from '../lib/agent/client.js';
-import {looksLikeQuestion, questionText} from '../lib/ask/question.js';
+import {OFFER_AT, asksExplicitly, looksLikeQuestion, offersAsk, questionText} from '../lib/ask/question.js';
 import {waitUnlessCancelled} from '../lib/core/timing.js';
 import {displayNumber, evaluate, plainNumber} from '../lib/math/expression.js';
 import {
@@ -353,6 +353,45 @@ test('looksLikeQuestion offers Ask for questions and requests only', () => {
             throw new Error(`should not ask: ${text}`);
     }
     assertEqual(questionText('?  wifi code '), 'wifi code');
+});
+
+test('offersAsk follows the agent\'s intent, with "?" and the old rules as fallbacks', () => {
+    const forAssistant = {intent: 'do', assistant: OFFER_AT + 0.1};
+    const notForIt = {intent: 'find', assistant: OFFER_AT - 0.1};
+    assertEqual(offersAsk('turn on night light', forAssistant), true);     // no "?", no question word
+    assertEqual(offersAsk('when is it due', notForIt), false);             // the model knows better
+    assertEqual(offersAsk('tailscale ip?', notForIt), true);               // "?" always asks
+    assertEqual(offersAsk('? tailscale ip', notForIt), true);
+    assertEqual(offersAsk('when is it due', null), true);                  // no answer: the rules
+    assertEqual(offersAsk('firefox', null), false);
+    assertEqual(offersAsk('ok', forAssistant), false);                     // too short to mean anything
+    assertEqual([asksExplicitly('?'), asksExplicitly('wifi?')], [false, true]);
+});
+
+test('AgentClient asks what text is for, and gets null from an agent that cannot say', async () => {
+    const client = new AgentClient();
+    assertEqual(await client.intent('turn on night light'), null);        // no agent
+    const agent = new FakeAgent([]);
+    await agent.start();
+    try {
+        await waitFor(() => client.available);
+        assertEqual((await client.intent('turn on night light')).assistant, 0.9);
+        assertEqual((await client.intent('tailscale ip')).intent, 'find');
+        assertEqual(agent.intents, ['turn on night light', 'tailscale ip']);
+    } finally {
+        agent.stop();
+    }
+    await waitFor(() => !client.available);
+    const old = new FakeAgent([], {withUsed: false});                      // before Intent existed
+    await old.start();
+    try {
+        await waitFor(() => client.available);
+        assertEqual(await client.intent('turn on night light'), null);
+    } finally {
+        old.stop();
+    }
+    await waitFor(() => !client.available);
+    client.destroy();
 });
 
 test('AgentClient asks and follows the answer as it streams', async () => {

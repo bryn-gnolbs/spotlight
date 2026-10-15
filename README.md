@@ -23,8 +23,11 @@
   session bus). Enter copies the memory's text; the best match also offers its links
   and its screenshot one arrow key away. When the agent is not running the section
   simply stays hidden.
-- **Ask the assistant.** Type a question (ending with "?", or starting with a question
-  word such as "when" or "find") and **Ask the assistant** is the first result. Enter asks
+- **Ask the assistant.** Type a question or a request ("whats my tailscale ip", "turn on
+  night light") and **Ask the assistant** is the first result; keywords ("tailscale ip"),
+  app names and sums search as before. The agent's intent classifier decides, a few
+  milliseconds per keystroke; a "?" at either end always asks, and without the agent
+  Spotlight falls back to question words. Enter asks
   the genolabs agent, and its answer streams into the same bubble ScreenVision speaks in,
   where the results were: Enter copies it, its chips open the memories it drew on, Esc goes
   back to the results. Setting up the agent's model: genolabs-os `docs/BRAIN.md`.
