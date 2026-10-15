@@ -41,9 +41,8 @@ export function buildShortcutPage(settings) {
             keyval === Gdk.KEY_Shift_L || keyval === Gdk.KEY_Shift_R ||
             keyval === Gdk.KEY_Alt_L || keyval === Gdk.KEY_Alt_R ||
             keyval === Gdk.KEY_Super_L || keyval === Gdk.KEY_Super_R ||
-            keyval === Gdk.KEY_Caps_Lock) {
+            keyval === Gdk.KEY_Caps_Lock)
             return true;
-        }
 
         const mask = state & Gtk.accelerator_get_default_mod_mask();
         const binding = Gtk.accelerator_name_with_keycode(null, keyval, keycode, mask);
@@ -67,14 +66,14 @@ export function buildShortcutPage(settings) {
 
     const resetRow = new Adw.ActionRow({
         title: 'Reset to default',
-        subtitle: 'Set shortcut to Ctrl+Space',
+        subtitle: 'Set shortcut to Super+Space',
     });
     const resetButton = new Gtk.Button({
         label: 'Reset',
         valign: Gtk.Align.CENTER,
     });
     resetButton.connect('clicked', () => {
-        settings.set_strv('toggle-shortcut', ['<Control>space']);
+        settings.set_strv('toggle-shortcut', ['<Super>space']);
         shortcutLabel.label = formatShortcut(settings.get_strv('toggle-shortcut'));
     });
     resetRow.add_suffix(resetButton);
@@ -85,7 +84,7 @@ export function buildShortcutPage(settings) {
 
 function formatShortcut(shortcutArray) {
     if (!shortcutArray || shortcutArray.length === 0)
-        return 'Not set (will default to Ctrl+Space)';
+        return 'Not set (will default to Super+Space)';
     const shortcut = shortcutArray[0];
     return shortcut
         .replace(/<Super>/g, 'Super+')

@@ -10,7 +10,7 @@ A `button-press-event` handler connected to the search results widget catches AL
 
 ## Layer 2: Keyboard Activation Capture
 
-In the popup's `captured-event` handler, Enter and Space keys are captured when focus lands on a result button rather than the entry or a popup menu. This covers keyboard activation of copy-to-clipboard buttons and similar result actions that do not create windows.
+In the popup's `captured-event` handler, Enter and Space keys are captured when focus lands on a result button rather than the entry or a popup menu. This covers keyboard activation of copy-to-clipboard buttons and similar result actions that do not create windows. The handler also emits `clicked` on the focused button itself: St.Button only activates on key release, and by then the close has taken the result off screen, so leaving activation to the button loses it.
 
 ## Layer 3: External Window Focus Tracking
 
@@ -23,7 +23,7 @@ A `global.display` `notify::focus-window` handler tracks external application fo
 - `notify::key-focus` handler closes when focus leaves the widget tree, except for popup menus
 - Backdrop `button-release-event` catches clicks outside the popup
 - Esc key in captured-event closes the popup
-- Ctrl+Space shortcut toggles the popup
+- Super+Space shortcut toggles the popup
 
 ## Why So Many Layers
 

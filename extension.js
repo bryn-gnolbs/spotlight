@@ -3,6 +3,7 @@
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import {SpotlightPopup} from './lib/popup/widget/spotlightPopup.js';
 import {KeybindingManager} from './lib/core/keybinding.js';
+import {MemorySearchProvider, addMemoriesSection, removeMemoriesSection} from './lib/memories/provider.js';
 
 // Entry point. Keeping enable and disable adjacent makes the cleanup symmetry obvious at a glance.
 export default class SpotlightExtension extends Extension {
@@ -12,10 +13,12 @@ export default class SpotlightExtension extends Extension {
         // Steal the overview search widgets permanently. The overview search stays gone
         // for as long as Spotlight is loaded, which is the whole point of the extension.
         this._popup.stealOverviewSearch();
+        this._memories = new MemorySearchProvider();
+        addMemoriesSection(this._popup.searchResults, this._memories);
         this._keybindingManager = new KeybindingManager();
         this._keybindingManager.enable();
         const shortcuts = this._settings.get_strv('toggle-shortcut');
-        const accelerator = shortcuts.length > 0 ? shortcuts[0] : '<Control>space';
+        const accelerator = shortcuts.length > 0 ? shortcuts[0] : '<Super>space';
         if (shortcuts.length === 0)
             this._settings.set_strv('toggle-shortcut', [accelerator]);
         this._grabShortcut(accelerator);
@@ -27,17 +30,27 @@ export default class SpotlightExtension extends Extension {
         }, this);
     }
     _grabShortcut(accelerator) {
-        this._keybindingManager.listenFor(accelerator, () => {
+        const grabbed = this._keybindingManager.listenFor(accelerator, () => {
             if (this._popup.visible)
                 this._popup.close();
             else
                 this._popup.open();
         });
+        // Mutter refuses keys another shortcut already owns. On stock GNOME
+        // that is Super+Space, which switches input sources.
+        if (!grabbed) {
+            console.warn(`Spotlight: ${accelerator} is already used by another shortcut. ` +
+                'If it is input-source switching, free it with: gsettings set ' +
+                "org.gnome.desktop.wm.keybindings switch-input-source \"['XF86Keyboard']\"");
+        }
     }
     disable() {
         this._settings.disconnectObject(this);
         this._keybindingManager.disable();
         this._keybindingManager = null;
+        removeMemoriesSection(this._popup.searchResults, this._memories);
+        this._memories.destroy();
+        this._memories = null;
         // Return the stolen widgets to the overview before destroying things so nothing leaks.
         this._popup.returnOverviewSearch();
         this._popup.destroy();

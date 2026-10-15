@@ -66,3 +66,4 @@ venv/
 
 # Node (if any local tooling)
 node_modules/
+build/

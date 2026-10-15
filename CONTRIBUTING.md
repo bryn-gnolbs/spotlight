@@ -12,7 +12,7 @@ Contributions of all types are welcome — bug fixes, new features, documentatio
 ## Getting Started
 
 ```bash
-git clone https://github.com/itsnin/spotlight.git
+git clone https://github.com/bryn-gnolbs/spotlight.git
 cd spotlight
 ```
 
@@ -21,13 +21,13 @@ cd spotlight
 ```bash
 # Build and install a development version
 gnome-extensions pack --force --extra-source=lib --extra-source=prefs --extra-source=schemas --extra-source=scripts --extra-source=LICENSE
-gnome-extensions install --force spotlight@nin.shell-extension.zip
+gnome-extensions install --force spotlight@genolabs.net.shell-extension.zip
 
 # Or use the release installer script
 scripts/install.sh
 
 # Enable
-gnome-extensions enable spotlight@nin
+gnome-extensions enable spotlight@genolabs.net
 ```
 
 Log out and back in on Wayland before enabling.
@@ -107,13 +107,13 @@ yamllint .github/ -c .yamllint
 Test on at least one supported GNOME Shell version (preferably 50 or 51):
 
 - [ ] Extension enables without errors in journal
-- [ ] `Ctrl+Space` opens the popup positioned 25% from top on the correct monitor
+- [ ] `Super+Space` opens the popup positioned 25% from top on the correct monitor
 - [ ] Typing shows results from at least apps and system actions
 - [ ] `Enter` activates a result and closes the popup
 - [ ] `Esc` closes the popup
 - [ ] Clicking outside closes the popup
 - [ ] Opening a web search result closes the popup and focuses the browser
-- [ ] `Ctrl+Space` toggles closed when popup is open
+- [ ] `Super+Space` toggles closed when popup is open
 - [ ] Preferences window opens and all three pages work
 - [ ] Changing shortcut in prefs actually changes the binding
 - [ ] Dark/Light/Default theme modes all work
@@ -123,7 +123,7 @@ Test on at least one supported GNOME Shell version (preferably 50 or 51):
 
 ### Debugging tips
 
-- **Looking Glass:** Press `Alt+F2`, type `lg`, go to Extensions tab. Inspect `Main.extensionManager.lookup('spotlight@nin').stateObj`
+- **Looking Glass:** Press `Alt+F2`, type `lg`, go to Extensions tab. Inspect `Main.extensionManager.lookup('spotlight@genolabs.net').stateObj`
 - **Nested shell:** Run a nested Wayland session for safer testing: `dbus-run-session -- gnome-shell --nested --wayland`
 - **Schema reload:** After changing the schema XML, run `glib-compile-schemas schemas/` and restart the shell
 - **Signal leaks:** If you suspect a signal leak, check that every `connectObject` has a matching `disconnectObject` and every plain `connect` has a stored ID that gets `disconnect`ed
