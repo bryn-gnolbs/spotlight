@@ -148,6 +148,7 @@ async function run() {
             text: 'Release notes at https://example.com/notes', links: ['https://example.com/notes'], emails: [],
             codes: [], image: GLib.build_filenamev([OUT_DIR, 'shot.png']), app: 'Firefox', title: 'Notes'},
     ]);
+    agent.retrieval = 'r-smoke';
     await agent.start();
     for (let i = 0; i < 50 && !memories()._client.available; i++)
         await sleep(100);
@@ -179,6 +180,9 @@ async function run() {
     await pressKeys([Clutter.KEY_Return]);
     check('Enter copies the memory text', await clipboardText() === SAMPLE_TEXT, await clipboardText());
     check('Enter closes Spotlight', !popup()._visible);
+    await sleep(200);
+    check('Enter tells the agent the memory was used',
+        JSON.stringify(agent.used) === JSON.stringify([{retrieval: 'r-smoke', ids: ['m-text']}]), agent.used);
 
     // The best match offers its link and screenshot; opening goes to the default app.
     const opened = [];
@@ -200,6 +204,9 @@ async function run() {
         await tapKey(Clutter.KEY_Return);
         check('link row opens the link', opened[0] === 'https://example.com/notes', opened);
         check('activating a row closes Spotlight', !popup()._visible);
+        await sleep(200);
+        check('opening a follow-up row tells the agent its memory was used',
+            JSON.stringify(agent.used.at(-1)) === JSON.stringify({retrieval: 'r-smoke', ids: ['m-link']}), agent.used);
         popup().open();
         await sleep(600);
         await search(popup()._stealer.entry, 'release notes');

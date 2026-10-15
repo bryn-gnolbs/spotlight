@@ -6,7 +6,12 @@ import Gio from 'gi://Gio';
 
 const BUS_NAME = 'net.genolabs.Agent';
 const OBJECT_PATH = '/net/genolabs/Agent';
-const AGENT_XML = `
+const USED_XML = `
+    <method name="Used">
+      <arg type="s" name="usage_json" direction="in"/>
+      <arg type="u" name="recorded" direction="out"/>
+    </method>`;
+const agentXml = withUsed => `
 <node>
   <interface name="net.genolabs.Agent1">
     <method name="Status">
@@ -16,14 +21,24 @@ const AGENT_XML = `
       <arg type="s" name="query" direction="in"/>
       <arg type="u" name="limit" direction="in"/>
       <arg type="s" name="memories_json" direction="out"/>
-    </method>
+    </method>${withUsed ? USED_XML : ''}
   </interface>
 </node>`;
 
 export class FakeAgent {
-    /** @param {object[]} memories - what Search answers from */
-    constructor(memories) {
+    /**
+     * @param {object[]} memories - what Search answers from
+     * @param {object} [options]
+     * @param {boolean} [options.withUsed] - false plays an agent from before Used
+     */
+    constructor(memories, {withUsed = true} = {}) {
         this.memories = memories;
+        this.withUsed = withUsed;
+        // Set to a string to add it to every Search result as "retrieval", like
+        // the long-term memory does; null answers like the offline fallback.
+        this.retrieval = null;
+        // Every Used call, parsed.
+        this.used = [];
         // Every Search call as [query, limit], so tests can count requests.
         this.queries = [];
         // Set to a string to answer every Search with it instead (e.g. bad JSON).
@@ -42,13 +57,20 @@ export class FakeAgent {
             return this.reply;
         const words = query.toLowerCase().split(/\s+/).filter(Boolean);
         const matches = this.memories.filter(m => words.every(w => m.text.toLowerCase().includes(w)));
-        return JSON.stringify(matches.slice(0, limit));
+        const results = matches.slice(0, limit);
+        return JSON.stringify(this.retrieval === null ? results : results.map(m => ({...m, retrieval: this.retrieval})));
+    }
+
+    Used(usageJson) {
+        const usage = JSON.parse(usageJson);
+        this.used.push(usage);
+        return usage.ids.length;
     }
 
     /** Export on the session bus and own the agent's name. */
     start() {
         const connection = Gio.DBus.session;
-        this._exported = Gio.DBusExportedObject.wrapJSObject(AGENT_XML, this);
+        this._exported = Gio.DBusExportedObject.wrapJSObject(agentXml(this.withUsed), this);
         this._exported.export(connection, OBJECT_PATH);
         return new Promise((resolve, reject) => {
             this._ownerId = Gio.bus_own_name_on_connection(connection, BUS_NAME,

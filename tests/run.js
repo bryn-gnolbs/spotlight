@@ -9,7 +9,7 @@ import System from 'system';
 import {AgentClient} from '../lib/agent/client.js';
 import {waitUnlessCancelled} from '../lib/core/timing.js';
 import {
-    isWebLink, linkHost, memoryDetails, memoryName, memoryRows, parseMemories,
+    isWebLink, linkHost, memoryDetails, memoryName, memoryRows, memoryUsage, parseMemories,
     primaryAction, relativeTime, shorten,
 } from '../lib/memories/model.js';
 import {FakeAgent} from './fakeAgent.js';
@@ -37,9 +37,19 @@ async function waitFor(condition, timeoutMs = 3000) {
     }
 }
 
+// console.warn is read-only in GJS, so catch warnings where they end up: in
+// GLib's log. They are still printed.
+const warnings = [];
+GLib.log_set_writer_func((_level, fields) => {
+    const message = new TextDecoder().decode(fields.MESSAGE ?? new Uint8Array());
+    warnings.push(message);
+    printerr(message);
+    return GLib.LogWriterOutput.HANDLED;
+});
+
 const memory = (fields = {}) => ({
     id: 'm1', time: '2026-10-15T09:00:00.000Z', origin: 'screenvision', text: '',
-    links: [], emails: [], codes: [], image: null, app: '', title: '', ...fields,
+    links: [], emails: [], codes: [], image: null, app: '', title: '', retrieval: '', ...fields,
 });
 
 // Model --------------------------------------------------------------------
@@ -47,18 +57,19 @@ const memory = (fields = {}) => ({
 test('parseMemories keeps valid memories and fills missing fields', () => {
     const json = JSON.stringify([
         {id: 'a', time: 't', text: 'hello', links: ['https://example.com', 'javascript:alert(1)', 'file:///etc/passwd'],
-            image: '/home/me/shot.png', app: 'Firefox', title: 'Example'},
+            image: '/home/me/shot.png', app: 'Firefox', title: 'Example', retrieval: 'r1'},
         {id: 'b'},
         {id: ''},
         {text: 'no id'},
         null,
         'string',
-        {id: 'c', image: 'relative.png', links: 'not a list', text: 42},
+        {id: 'c', image: 'relative.png', links: 'not a list', text: 42, retrieval: 7},
     ]);
     assertEqual(parseMemories(json), [
-        {id: 'a', time: 't', text: 'hello', links: ['https://example.com'], image: '/home/me/shot.png', app: 'Firefox', title: 'Example'},
-        {id: 'b', time: '', text: '', links: [], image: null, app: '', title: ''},
-        {id: 'c', time: '', text: '', links: [], image: null, app: '', title: ''},
+        {id: 'a', time: 't', text: 'hello', links: ['https://example.com'], image: '/home/me/shot.png', app: 'Firefox', title: 'Example',
+            retrieval: 'r1'},
+        {id: 'b', time: '', text: '', links: [], image: null, app: '', title: '', retrieval: ''},
+        {id: 'c', time: '', text: '', links: [], image: null, app: '', title: '', retrieval: ''},
     ]);
 });
 
@@ -151,6 +162,21 @@ test('memoryRows does not repeat the primary action as a follow-up', () => {
     assertEqual(memoryRows([memory({id: 'b', image: '/s/b.png'})]).map(r => r.id), ['b']);
 });
 
+test('every row of a memory reports that memory as used', () => {
+    assertEqual(memoryUsage(memory({id: 'a', retrieval: 'r1'})), {retrieval: 'r1', ids: ['a']});
+    assertEqual(memoryUsage(memory({id: 'a'})), {ids: ['a']});
+    const rows = memoryRows([
+        memory({id: 'a', text: 'x', links: ['https://a.io'], image: '/s/a.png', retrieval: 'r1'}),
+        memory({id: 'b', text: 'y', retrieval: 'r1'}),
+    ]);
+    assertEqual(rows.map(r => [r.id, r.usage]), [
+        ['a', {retrieval: 'r1', ids: ['a']}],
+        ['a#link0', {retrieval: 'r1', ids: ['a']}],
+        ['a#image', {retrieval: 'r1', ids: ['a']}],
+        ['b', {retrieval: 'r1', ids: ['b']}],
+    ]);
+});
+
 // Typing pause --------------------------------------------------------------
 
 test('waitUnlessCancelled resolves true after the pause', async () => {
@@ -215,6 +241,44 @@ test('AgentClient searches the agent once it appears, and stops when it goes', a
     }
     await waitFor(() => !client.available);
     assertEqual(await client.search('screenvision', 7), []);
+    client.destroy();
+});
+
+test('AgentClient tells the agent which results were used', async () => {
+    const client = new AgentClient();
+    assertEqual(await client.used({ids: ['x']}), 0);   // no agent yet: nothing to tell
+    const agent = new FakeAgent([memory({id: 'x', text: 'ScreenVision'})]);
+    agent.retrieval = 'r1';
+    await agent.start();
+    try {
+        await waitFor(() => client.available);
+        const [found] = await client.search('screenvision', 5);
+        assertEqual(found.retrieval, 'r1');
+        assertEqual(await client.used(memoryUsage(found)), 1);
+        // Offline fallback results have no retrieval id: the ids alone still teach.
+        assertEqual(await client.used({ids: ['x', 'y']}), 2);
+        assertEqual(agent.used, [{retrieval: 'r1', ids: ['x']}, {ids: ['x', 'y']}]);
+    } finally {
+        agent.stop();
+    }
+    await waitFor(() => !client.available);
+    client.destroy();
+});
+
+test('AgentClient.used is quiet with an agent from before Used', async () => {
+    const client = new AgentClient();
+    const agent = new FakeAgent([memory({id: 'x', text: 'ScreenVision'})], {withUsed: false});
+    await agent.start();
+    try {
+        await waitFor(() => client.available);
+        const before = warnings.length;
+        assertEqual(await client.used({ids: ['x']}), 0);
+        assertEqual(warnings.slice(before), []);
+        assertEqual(agent.used, []);
+    } finally {
+        agent.stop();
+    }
+    await waitFor(() => !client.available);
     client.destroy();
 });
 
