@@ -348,9 +348,10 @@ test('looksLikeQuestion offers Ask for questions and requests only', () => {
         if (!looksLikeQuestion(text))
             throw new Error(`should ask: ${text}`);
     }
-    for (const text of ['firefox', 'settings', 'how', '12*7', 'is', '?', 'screenvision reads'])
+    for (const text of ['firefox', 'settings', 'how', '12*7', 'is', '?', 'screenvision reads']) {
         if (looksLikeQuestion(text))
             throw new Error(`should not ask: ${text}`);
+    }
     assertEqual(questionText('?  wifi code '), 'wifi code');
 });
 
