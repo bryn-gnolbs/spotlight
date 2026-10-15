@@ -2,6 +2,7 @@
 // tests and the smoke test. Like the real agent, Search matches memories
 // containing every word of the query. Only ever run on a private test bus.
 
+import GLib from 'gi://GLib';
 import Gio from 'gi://Gio';
 
 const BUS_NAME = 'net.genolabs.Agent';
@@ -11,9 +12,21 @@ const USED_XML = `
       <arg type="s" name="usage_json" direction="in"/>
       <arg type="u" name="recorded" direction="out"/>
     </method>`;
+const ASK_XML = `
+    <method name="Ask">
+      <arg type="s" name="question" direction="in"/>
+      <arg type="s" name="ask_id" direction="out"/>
+    </method>
+    <method name="CancelAsk">
+      <arg type="s" name="ask_id" direction="in"/>
+      <arg type="b" name="cancelled" direction="out"/>
+    </method>
+    <signal name="AnswerStatus"><arg type="s" name="ask_id"/><arg type="s" name="status"/></signal>
+    <signal name="AnswerText"><arg type="s" name="ask_id"/><arg type="s" name="text"/></signal>
+    <signal name="AnswerDone"><arg type="s" name="ask_id"/><arg type="s" name="answer_json"/></signal>`;
 const agentXml = withUsed => `
 <node>
-  <interface name="net.genolabs.Agent1">
+  <interface name="net.genolabs.Agent1">${withUsed ? ASK_XML : ''}
     <method name="Status">
       <arg type="s" name="status_json" direction="out"/>
     </method>
@@ -43,6 +56,13 @@ export class FakeAgent {
         this.queries = [];
         // Set to a string to answer every Search with it instead (e.g. bad JSON).
         this.reply = null;
+        // How Ask answers: the text arrives in these chunks, then Done with the
+        // memories matching the question as sources. Set error to fail instead.
+        this.answerChunks = ['It is due ', 'on Friday.'];
+        this.answerError = null;
+        // Every Ask as its question, and every CancelAsk id.
+        this.asked = [];
+        this.cancelledAsks = [];
         this._exported = null;
         this._ownerId = 0;
     }
@@ -65,6 +85,36 @@ export class FakeAgent {
         const usage = JSON.parse(usageJson);
         this.used.push(usage);
         return usage.ids.length;
+    }
+
+    Ask(question) {
+        this.asked.push(question);
+        const id = `ask${this.asked.length}`;
+        const signals = [['AnswerStatus', [id, 'Searching memories']]];
+        if (!this.answerError)
+            signals.push(...this.answerChunks.map(chunk => ['AnswerText', [id, chunk]]));
+        const words = question.toLowerCase().split(/\s+/).filter(Boolean);
+        const sources = this.memories.filter(m => words.some(w => m.text.toLowerCase().includes(w)));
+        signals.push(['AnswerDone', [id, JSON.stringify({
+            text: this.answerError ? '' : this.answerChunks.join(''), sources: sources.slice(0, 3),
+            model: 'fake', error: this.answerError, cancelled: false,
+        })]]);
+        // After the reply, one signal at a time, like a model writing.
+        let delay = 30;
+        for (const [name, args] of signals) {
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
+                if (!this.cancelledAsks.includes(id))
+                    this._exported?.emit_signal(name, new GLib.Variant('(ss)', args));
+                return GLib.SOURCE_REMOVE;
+            });
+            delay += 30;
+        }
+        return id;
+    }
+
+    CancelAsk(id) {
+        this.cancelledAsks.push(id);
+        return true;
     }
 
     /** Export on the session bus and own the agent's name. */

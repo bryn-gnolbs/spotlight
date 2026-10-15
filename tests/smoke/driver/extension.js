@@ -106,12 +106,14 @@ async function run() {
     const memories = () => ext()._memories;
     const apps = () => results()._providers.find(p => p.id === 'applications');
     const math = () => ext()._math;
+    const ask = () => ext()._ask;
+    const answers = () => ext()._answers;
     const gnomeCalculator = () => results()._providers.find(p => p.id === 'org.gnome.Calculator.desktop');
     const order = () => results()._providers.map(p => p.id);
 
-    check('Calculator first, then Applications, then Memories',
-        results()._providers[0] === math() && results()._providers[1]?.id === 'applications' &&
-        results()._providers[2] === memories(), order());
+    check('Ask first, then Calculator, Applications, Memories',
+        results()._providers[0] === ask() && results()._providers[1] === math() &&
+        results()._providers[2]?.id === 'applications' && results()._providers[3] === memories(), order());
     check('Memories header is not a launcher', memories().display.providerInfo.reactive === false);
 
     // Stock GNOME binds Super+Space to input-source switching, which blocks the grab.
@@ -249,6 +251,61 @@ async function run() {
         Gio.AppInfo.launch_default_for_uri = realLaunch;
     }
 
+    // Asking: a question offers Ask first, and Enter answers in the bubble.
+    popup().open();
+    await sleep(600);
+    const askEntry = popup()._stealer.entry;
+    await search(askEntry, 'release notes');
+    check('plain words do not offer Ask', sectionRows(ask()).length === 0, sectionRows(ask()));
+    const QUESTION = 'when are the release notes due?';
+    await search(askEntry, QUESTION);
+    check('a question offers Ask first', JSON.stringify(sectionRows(ask())) === '["Ask the assistant"]',
+        sectionRows(ask()));
+    askEntry.grab_key_focus();
+    await tapKey(Clutter.KEY_Return);
+    check('Enter on Ask keeps Spotlight open', popup()._visible);
+    for (let i = 0; i < 30 && answers().bubble.bodyText !== 'It is due on Friday.'; i++)
+        await sleep(100);
+    await sleep(1800);   // let the words finish fading in
+    check('the agent is asked the question', agent.asked.at(-1) === QUESTION, agent.asked);
+    check('the answer streams into the bubble', answers().bubble.bodyText === 'It is due on Friday.',
+        answers().bubble.bodyText);
+    check('the answer takes the results\' place', answers().bubble.visible && !results().visible);
+    check('the question stays in the search field', popup()._stealer.entry.get_text() === QUESTION,
+        popup()._stealer.entry.get_text());
+    const chips = answers().bubble._chips.map(chip => chip.label);
+    check('chips: Copy first, then the memory it drew on',
+        JSON.stringify(chips) === JSON.stringify(['Copy', 'Release notes at…']), chips);
+    await saveScreenshot('answer.png');
+    await tapKey(Clutter.KEY_Escape);
+    check('Esc goes back to the results', popup()._visible && !answers().visible && results().visible &&
+        sectionRows(ask()).length === 1);
+    await tapKey(Clutter.KEY_Return);
+    for (let i = 0; i < 30 && answers().bubble.bodyText !== 'It is due on Friday.'; i++)
+        await sleep(100);
+    await tapKey(Clutter.KEY_Return);
+    check('Enter copies the answer', await clipboardText() === 'It is due on Friday.', await clipboardText());
+    await sleep(900);
+    check('then Spotlight closes', !popup()._visible);
+
+    // A problem is said plainly, with what to do.
+    agent.answerError = 'Claude has no API key: put ANTHROPIC_API_KEY=<your key> in secrets.env';
+    popup().open();
+    await sleep(600);
+    await search(popup()._stealer.entry, QUESTION);
+    popup()._stealer.entry.grab_key_focus();
+    await tapKey(Clutter.KEY_Return);
+    await sleep(1200);
+    check('a problem is said in the bubble', answers().bubble.headlineText === 'The assistant could not answer' &&
+        answers().bubble.bodyText.startsWith('Claude has no API key'), answers().bubble.headlineText);
+    await saveScreenshot('answer-problem.png');
+    // Typing something else is a new search.
+    await search(popup()._stealer.entry, 'release');
+    check('typing again goes back to the results', !answers().visible && results().visible);
+    agent.answerError = null;
+    popup().close();
+    await sleep(500);
+
     // Esc and the shortcut still close it.
     popup().open();
     await sleep(600);
@@ -286,7 +343,8 @@ async function run() {
     Main.extensionManager.enableExtension(UUID);
     await sleep(500);
     check('re-enable works', Main.extensionManager.lookup(UUID).state === 1 &&
-        results()._providers[0] === math() && results()._providers[2] === memories(), order());
+        results()._providers[0] === ask() && results()._providers[1] === math() &&
+        results()._providers[3] === memories(), order());
 }
 
 // GNOME briefly disables and re-enables extensions loaded after one that is

@@ -23,6 +23,11 @@
   session bus). Enter copies the memory's text; the best match also offers its links
   and its screenshot one arrow key away. When the agent is not running the section
   simply stays hidden.
+- **Ask the assistant.** Type a question (ending with "?", or starting with a question
+  word such as "when" or "find") and **Ask the assistant** is the first result. Enter asks
+  the genolabs agent, and its answer streams into the same bubble ScreenVision speaks in,
+  where the results were: Enter copies it, its chips open the memories it drew on, Esc goes
+  back to the results. Setting up the agent's model: genolabs-os `docs/BRAIN.md`.
 - **Super+Space**, like Cmd+Space on a Mac (see below if it is taken).
 - Keyboard activation fix: arrowing to any result and pressing Enter now always runs it.
 - Development setup: unit tests, a headless end-to-end smoke test, ESLint and CI.
