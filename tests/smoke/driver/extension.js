@@ -257,6 +257,11 @@ async function run() {
     const askEntry = popup()._stealer.entry;
     await search(askEntry, 'release notes');
     check('plain words do not offer Ask', sectionRows(ask()).length === 0, sectionRows(ask()));
+    // The agent's intent decides: a request with no "?" and no question word is for the assistant.
+    await search(askEntry, 'turn on night light');
+    check('a request the agent says is for the assistant offers Ask',
+        JSON.stringify(sectionRows(ask())) === '["Ask the assistant"]' &&
+        agent.intents.includes('turn on night light'), [sectionRows(ask()), agent.intents.slice(-3)]);
     const QUESTION = 'when are the release notes due?';
     await search(askEntry, QUESTION);
     check('a question offers Ask first', JSON.stringify(sectionRows(ask())) === '["Ask the assistant"]',

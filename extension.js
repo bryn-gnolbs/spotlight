@@ -27,6 +27,7 @@ export default class SpotlightExtension extends Extension {
         this._ask = new AskSearchProvider({
             onAsk: question => this._answers.ask(question),
             available: () => this._answers.available,
+            classify: (text, cancellable) => this._answers.intent(text, cancellable),
         });
         addAskSection(this._popup.searchResults, this._ask);
         this._popup.keepOpenWhenClicking(this._ask.display);

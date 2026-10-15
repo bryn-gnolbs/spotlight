@@ -13,6 +13,10 @@ const USED_XML = `
       <arg type="u" name="recorded" direction="out"/>
     </method>`;
 const ASK_XML = `
+    <method name="Intent">
+      <arg type="s" name="text" direction="in"/>
+      <arg type="s" name="intent_json" direction="out"/>
+    </method>
     <method name="Ask">
       <arg type="s" name="question" direction="in"/>
       <arg type="s" name="ask_id" direction="out"/>
@@ -63,6 +67,10 @@ export class FakeAgent {
         // Every Ask as its question, and every CancelAsk id.
         this.asked = [];
         this.cancelledAsks = [];
+        // Every Intent call's text. Intent says a text is for the assistant when
+        // it starts with one of these words (the real agent uses a model).
+        this.intents = [];
+        this.assistantWords = ['when', 'what', 'turn', 'set'];
         this._exported = null;
         this._ownerId = 0;
     }
@@ -85,6 +93,14 @@ export class FakeAgent {
         const usage = JSON.parse(usageJson);
         this.used.push(usage);
         return usage.ids.length;
+    }
+
+    Intent(text) {
+        this.intents.push(text);
+        const forAssistant = this.assistantWords.includes(text.trim().toLowerCase().split(/\s+/)[0]);
+        return JSON.stringify(forAssistant
+            ? {intent: 'ask', confidence: 0.9, assistant: 0.9, by: 'model'}
+            : {intent: 'find', confidence: 0.9, assistant: 0.1, by: 'model'});
     }
 
     Ask(question) {
