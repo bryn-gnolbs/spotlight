@@ -5,9 +5,9 @@ import Gtk from 'gi://Gtk';
 
 // Theme options. Default follows the system style, dark and light force a specific appearance.
 const THEMES = [
-    { value: 'default', label: 'Default', subtitle: 'Follow GNOME system style' },
-    { value: 'dark', label: 'Dark', subtitle: 'Always use dark appearance' },
-    { value: 'light', label: 'Light', subtitle: 'Always use light appearance' },
+    {value: 'default', label: 'Default', subtitle: 'Follow GNOME system style'},
+    {value: 'dark', label: 'Dark', subtitle: 'Always use dark appearance'},
+    {value: 'light', label: 'Light', subtitle: 'Always use light appearance'},
 ];
 
 export function buildAppearancePage(settings) {

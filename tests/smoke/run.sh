@@ -30,6 +30,8 @@ unzip -q "$ZIP" -d "$EXT_DIR/$UUID"
 cp "$PROJECT"/tests/smoke/driver/* "$PROJECT"/tests/fakeAgent.js "$DRIVER_DIR/"
 unset WAYLAND_DISPLAY DISPLAY
 
+# Single quotes on purpose: the inner shell expands these variables.
+# shellcheck disable=SC2016
 timeout 150 dbus-run-session -- bash -c '
     gnome-shell --headless --wayland --no-x11 --virtual-monitor 1600x900 >"$SPOTLIGHT_SMOKE_OUT/shell.log" 2>&1 &
     shell=$!

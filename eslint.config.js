@@ -44,7 +44,8 @@ export default [
                 objects: 'always-multiline',
                 imports: 'always-multiline',
                 exports: 'always-multiline',
-                functions: 'never',
+                // Upstream Spotlight (Prettier style) puts them after multi-line arguments.
+                functions: 'only-multiline',
             }],
             'eqeqeq': ['error', 'always'],
             'no-unused-vars': ['error', {argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrors: 'none'}],

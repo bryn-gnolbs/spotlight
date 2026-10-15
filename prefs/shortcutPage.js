@@ -41,9 +41,8 @@ export function buildShortcutPage(settings) {
             keyval === Gdk.KEY_Shift_L || keyval === Gdk.KEY_Shift_R ||
             keyval === Gdk.KEY_Alt_L || keyval === Gdk.KEY_Alt_R ||
             keyval === Gdk.KEY_Super_L || keyval === Gdk.KEY_Super_R ||
-            keyval === Gdk.KEY_Caps_Lock) {
+            keyval === Gdk.KEY_Caps_Lock)
             return true;
-        }
 
         const mask = state & Gtk.accelerator_get_default_mod_mask();
         const binding = Gtk.accelerator_name_with_keycode(null, keyval, keycode, mask);
