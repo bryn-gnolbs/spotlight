@@ -105,10 +105,13 @@ async function run() {
     const results = () => popup().searchResults;
     const memories = () => ext()._memories;
     const apps = () => results()._providers.find(p => p.id === 'applications');
+    const math = () => ext()._math;
+    const gnomeCalculator = () => results()._providers.find(p => p.id === 'org.gnome.Calculator.desktop');
+    const order = () => results()._providers.map(p => p.id);
 
-    check('Memories section sits right after Applications',
-        results()._providers[0]?.id === 'applications' && results()._providers[1] === memories(),
-        results()._providers.map(p => p.id));
+    check('Calculator first, then Applications, then Memories',
+        results()._providers[0] === math() && results()._providers[1]?.id === 'applications' &&
+        results()._providers[2] === memories(), order());
     check('Memories header is not a launcher', memories().display.providerInfo.reactive === false);
 
     // Stock GNOME binds Super+Space to input-source switching, which blocks the grab.
@@ -134,6 +137,35 @@ async function run() {
     check('typing finds apps', sectionRows(apps()).includes('Settings'), sectionRows(apps()));
     await search(entry, 'lock');
     check('system actions still found', sectionRows(apps()).some(t => /lock/i.test(t)), sectionRows(apps()));
+    check('words are not calculations', sectionRows(math()).length === 0, sectionRows(math()));
+
+    // Inline math: the answer is there as soon as the expression is complete.
+    await search(entry, '');
+    await typeText('12*7');
+    check('typing 12*7 answers 84', JSON.stringify(sectionRows(math())) === '["84"]', sectionRows(math()));
+    check('the answer shows the expression as understood',
+        findRow(math(), '84')?._descriptionLabel?.text === '12 × 7', findRow(math(), '84')?._descriptionLabel?.text);
+    // GNOME Calculator would repeat the answer lower down; give it time to try.
+    await sleep(1500);
+    check('GNOME Calculator does not repeat it', sectionRows(gnomeCalculator()).length === 0,
+        gnomeCalculator() ? sectionRows(gnomeCalculator()) : 'GNOME Calculator not installed');
+    await saveScreenshot('math.png');
+    await search(entry, '15% of 80');
+    check('percentages read naturally', JSON.stringify(sectionRows(math())) === '["12"]', sectionRows(math()));
+    await search(entry, '1234567 * 3');
+    check('large answers are grouped', JSON.stringify(sectionRows(math())) === '["3,703,701"]', sectionRows(math()));
+    if (gnomeCalculator()) {
+        // What Spotlight does not answer still reaches GNOME Calculator.
+        await search(entry, 'sqrt(16)', 3000);
+        check('GNOME Calculator still answers the rest', sectionRows(math()).length === 0 &&
+            sectionRows(gnomeCalculator()).length > 0, sectionRows(gnomeCalculator()));
+    }
+    await search(entry, '12*7');
+    entry.grab_key_focus();
+    await tapKey(Clutter.KEY_Return);
+    check('Enter copies the plain answer', await clipboardText() === '84', await clipboardText());
+    check('Enter on a calculation closes Spotlight', !popup()._visible);
+    await pressKeys([Clutter.KEY_Super_L, Clutter.KEY_space]);
 
     // No agent on this bus yet: the section stays hidden and nothing breaks.
     await search(entry, 'screenvision');
@@ -142,7 +174,7 @@ async function run() {
 
     const now = Date.now();
     const agent = new FakeAgent([
-        {id: 'm-text', time: new Date(now - 2 * 3600e3).toISOString(), origin: 'screenvision', text: SAMPLE_TEXT,
+        {id: 'm-text', time: new Date(now - 5 * 60e3).toISOString(), origin: 'screenvision', text: SAMPLE_TEXT,
             links: [], emails: [], codes: [], image: null, app: 'Claude', title: 'Claude'},
         {id: 'm-link', time: new Date(now - 26 * 3600e3).toISOString(), origin: 'screenvision',
             text: 'Release notes at https://example.com/notes', links: ['https://example.com/notes'], emails: [],
@@ -158,7 +190,7 @@ async function run() {
     check('typing a remembered word shows the memory', JSON.stringify(sectionRows(memories())) === JSON.stringify([SAMPLE_TEXT]),
         sectionRows(memories()));
     check('memory row says where and when',
-        findRow(memories(), SAMPLE_TEXT)?._descriptionLabel?.text === 'Claude · 2 hours ago',
+        findRow(memories(), SAMPLE_TEXT)?._descriptionLabel?.text === 'Claude · 5 minutes ago',
         findRow(memories(), SAMPLE_TEXT)?._descriptionLabel?.text);
     await saveScreenshot('memories.png');
 
@@ -241,15 +273,20 @@ async function run() {
     // Disable gives everything back to GNOME; enable takes it again.
     const results0 = results();
     const provider0 = memories();
+    const math0 = math();
     Main.extensionManager.disableExtension(UUID);
     await sleep(500);
     check('disable removes the Memories section', !results0._providers.includes(provider0));
+    check('disable removes the Calculator section', !results0._providers.includes(math0));
+    const calculator0 = results0._providers.find(p => p.id === 'org.gnome.Calculator.desktop');
+    check('disable gives GNOME Calculator back its searches', !calculator0 ||
+        calculator0.getInitialResultSet.toString().includes('GetInitialResultSetAsync'));
     check('disable returns the search entry to the Overview', Main.overview.searchEntry.get_parent() !== null &&
         Main.overview.searchEntry.visible);
     Main.extensionManager.enableExtension(UUID);
     await sleep(500);
     check('re-enable works', Main.extensionManager.lookup(UUID).state === 1 &&
-        results()._providers[1] === memories(), results()._providers.map(p => p.id));
+        results()._providers[0] === math() && results()._providers[2] === memories(), order());
 }
 
 // GNOME briefly disables and re-enables extensions loaded after one that is

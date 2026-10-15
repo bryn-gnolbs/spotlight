@@ -29,6 +29,7 @@ Super+Space ─▶ KeybindingManager (lib/core/keybinding.js, grabs the key thro
                      │  typing
                      ▼
               GNOME's SearchResultsView asks every search provider:
+                Calculator                        lib/math/provider.js (in-process, instant)
                 Applications (+ system actions)   built into GNOME Shell
                 Memories                          lib/memories/provider.js  ── D-Bus ─▶ genolabs agent
                 Settings, Files, Calculator, ...  other apps, over D-Bus
@@ -39,6 +40,18 @@ Super+Space ─▶ KeybindingManager (lib/core/keybinding.js, grabs the key thro
 - `lib/popup/components/` positions the popup 25% from the top of the monitor under
   the pointer and draws the click-outside backdrop.
 - `lib/overview/thumbnails.js` makes the Overview's workspace thumbnails larger.
+
+### The Calculator section
+
+- `lib/math/expression.js` is a recursive-descent parser (think of a tiny hand-written
+  `ast` + evaluator; nothing is ever passed to `eval`). It only answers text with at
+  least one operation, so "42" or "settings" never show a Calculator row. Percentages
+  follow everyday speech: `15% of 80` = 12, `80 + 15%` = 92. Unit-tested.
+- `lib/math/provider.js` puts the section first, so Enter copies the answer (plain
+  digits; the row shows `1,234,567` grouped). It also stops GNOME Calculator's own
+  search provider from repeating an answer Spotlight already gave, by wrapping its
+  search methods with GNOME's `InjectionManager` (restored on disable). Everything
+  Spotlight does not understand still reaches GNOME Calculator.
 
 ### The Memories section
 
