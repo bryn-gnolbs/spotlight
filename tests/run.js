@@ -7,6 +7,7 @@ import Gio from 'gi://Gio';
 import System from 'system';
 
 import {AgentClient} from '../lib/agent/client.js';
+import {looksLikeQuestion, questionText} from '../lib/ask/question.js';
 import {waitUnlessCancelled} from '../lib/core/timing.js';
 import {displayNumber, evaluate, plainNumber} from '../lib/math/expression.js';
 import {
@@ -333,6 +334,51 @@ test('AgentClient.used is quiet with an agent from before Used', async () => {
         assertEqual(warnings.slice(before), []);
         assertEqual(agent.used, []);
     } finally {
+        agent.stop();
+    }
+    await waitFor(() => !client.available);
+    client.destroy();
+});
+
+// Asking ---------------------------------------------------------------------
+
+test('looksLikeQuestion offers Ask for questions and requests only', () => {
+    for (const text of ['when is the invoice due?', 'what did I save yesterday', 'find the wifi password',
+        '? wifi code', 'summarise last week']) {
+        if (!looksLikeQuestion(text))
+            throw new Error(`should ask: ${text}`);
+    }
+    for (const text of ['firefox', 'settings', 'how', '12*7', 'is', '?', 'screenvision reads']) {
+        if (looksLikeQuestion(text))
+            throw new Error(`should not ask: ${text}`);
+    }
+    assertEqual(questionText('?  wifi code '), 'wifi code');
+});
+
+test('AgentClient asks and follows the answer as it streams', async () => {
+    const client = new AgentClient();
+    assertEqual(await client.ask('anything'), null);   // no agent: no answer
+    const agent = new FakeAgent([memory({id: 'x', text: 'Invoice 4821 due Friday'})]);
+    await agent.start();
+    const heard = [];
+    const stop = client.onAnswer({
+        status: (id, text) => heard.push(['status', id, text]),
+        text: (id, chunk) => heard.push(['text', id, chunk]),
+        done: (id, answer) => heard.push(['done', id, answer]),
+    });
+    try {
+        await waitFor(() => client.available);
+        const id = await client.ask('when is the invoice due?');
+        assertEqual(id, 'ask1');
+        await waitFor(() => heard.some(h => h[0] === 'done'));
+        assertEqual(heard.map(h => h[0]), ['status', 'text', 'text', 'done']);
+        assertEqual(heard.filter(h => h[0] === 'text').map(h => h[2]).join(''), 'It is due on Friday.');
+        const done = heard.at(-1)[2];
+        assertEqual([done.text, done.sources.map(m => m.id), done.error], ['It is due on Friday.', ['x'], null]);
+        client.cancelAsk(id);
+        await waitFor(() => agent.cancelledAsks.length === 1);
+    } finally {
+        stop();
         agent.stop();
     }
     await waitFor(() => !client.available);

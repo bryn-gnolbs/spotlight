@@ -6,6 +6,8 @@ import {KeybindingManager} from './lib/core/keybinding.js';
 import {removeSection} from './lib/core/sections.js';
 import {CalculatorDeduplicator, MathSearchProvider, addMathSection} from './lib/math/provider.js';
 import {MemorySearchProvider, addMemoriesSection} from './lib/memories/provider.js';
+import {AskController} from './lib/ask/controller.js';
+import {AskSearchProvider, addAskSection} from './lib/ask/provider.js';
 
 // Entry point. Keeping enable and disable adjacent makes the cleanup symmetry obvious at a glance.
 export default class SpotlightExtension extends Extension {
@@ -20,6 +22,14 @@ export default class SpotlightExtension extends Extension {
         this._calculatorDeduplicator = new CalculatorDeduplicator(this._popup.searchResults);
         this._memories = new MemorySearchProvider();
         addMemoriesSection(this._popup.searchResults, this._memories);
+        this._answers = new AskController(this._popup);
+        this._popup.answers = this._answers;
+        this._ask = new AskSearchProvider({
+            onAsk: question => this._answers.ask(question),
+            available: () => this._answers.available,
+        });
+        addAskSection(this._popup.searchResults, this._ask);
+        this._popup.keepOpenWhenClicking(this._ask.display);
         this._keybindingManager = new KeybindingManager();
         this._keybindingManager.enable();
         const shortcuts = this._settings.get_strv('toggle-shortcut');
@@ -53,6 +63,12 @@ export default class SpotlightExtension extends Extension {
         this._settings.disconnectObject(this);
         this._keybindingManager.disable();
         this._keybindingManager = null;
+        removeSection(this._popup.searchResults, this._ask);
+        this._ask.destroy();
+        this._ask = null;
+        this._popup.answers = null;
+        this._answers.destroy();
+        this._answers = null;
         removeSection(this._popup.searchResults, this._memories);
         this._memories.destroy();
         this._memories = null;
