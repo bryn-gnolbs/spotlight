@@ -351,7 +351,7 @@ async function run() {
     await saveScreenshot('follow-up.png');
     await tapKey(Clutter.KEY_Return);
     check('Enter copies the follow-up answer without its Markdown',
-        await clipboardText() === 'They came from Tom, see notes.txt:\n•  first\n•  second'.replace(/•  /g, '• '),
+        await clipboardText() === 'They came from Tom, see notes.txt:\n• first\n• second',
         await clipboardText());
     await sleep(900);
 
