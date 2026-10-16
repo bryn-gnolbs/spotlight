@@ -304,10 +304,82 @@ async function run() {
     check('a problem is said in the bubble', answers().bubble.headlineText === 'The assistant could not answer' &&
         answers().bubble.bodyText.startsWith('Claude has no API key'), answers().bubble.headlineText);
     await saveScreenshot('answer-problem.png');
-    // Typing something else is a new search.
-    await search(popup()._stealer.entry, 'release');
-    check('typing again goes back to the results', !answers().visible && results().visible);
+    // Typing over the question writes a follow-up; Esc goes back to the results.
+    popup()._stealer.entry.set_text('release');
+    await sleep(300);
+    check('typing over the question offers a follow-up', answers().visible &&
+        JSON.stringify(answers().bubble.actionLabels) === '["Ask follow-up"]', answers().bubble.actionLabels);
+    await tapKey(Clutter.KEY_Escape);
+    check('Esc goes back to the results for what was typed', !answers().visible && results().visible);
     agent.answerError = null;
+    popup().close();
+    await sleep(500);
+
+    // A conversation: follow-ups see the earlier turns, shown quietly above.
+    popup().open();
+    await sleep(600);
+    await search(popup()._stealer.entry, QUESTION);
+    popup()._stealer.entry.grab_key_focus();
+    await tapKey(Clutter.KEY_Return);
+    for (let i = 0; i < 30 && !answers().bubble.hintText; i++)
+        await sleep(100);
+    const entryText = popup()._stealer.entry.clutter_text;
+    check('after an answer the question is selected, ready to be typed over',
+        entryText.get_selection() === QUESTION, entryText.get_selection());
+    check('the hint says how to follow up', answers().bubble.hintText === 'Type a follow-up · Esc for results',
+        answers().bubble.hintText);
+    const FOLLOW_UP = 'and who sent them';
+    await typeText(FOLLOW_UP);
+    await sleep(300);
+    check('typed text replaces the question', popup()._stealer.entry.get_text() === FOLLOW_UP,
+        popup()._stealer.entry.get_text());
+    agent.answerChunks = ['They came from **Tom**, see `notes.txt`:\n', '- first\n', '- second'];
+    await tapKey(Clutter.KEY_Return);
+    for (let i = 0; i < 40 && !answers().bubble.hintText; i++)
+        await sleep(100);
+    await sleep(1800);
+    const lastTalk = agent.conversed.at(-1);
+    // The fake agent names a new conversation after its Converse count.
+    check('the follow-up is asked in the same conversation', lastTalk.question === FOLLOW_UP &&
+        agent.conversed.at(-2).conversation === null &&
+        lastTalk.conversation === `talk${agent.conversed.length - 1}`, agent.conversed.slice(-2));
+    check('the earlier turn stays above, quietly', answers().bubble.historyText.startsWith(QUESTION) &&
+        answers().bubble.historyText.includes('It is due on Friday.'), answers().bubble.historyText);
+    check('Markdown is formatted, not shown raw', answers().bubble.bodyText.includes('**Tom**') &&
+        answers().bubble._body.clutter_text.text.includes('•  first') &&
+        !answers().bubble._body.clutter_text.text.includes('**'), answers().bubble._body.clutter_text.text);
+    await saveScreenshot('follow-up.png');
+    await tapKey(Clutter.KEY_Return);
+    check('Enter copies the follow-up answer without its Markdown',
+        await clipboardText() === 'They came from Tom, see notes.txt:\n• first\n• second',
+        await clipboardText());
+    await sleep(900);
+
+    // A long answer scrolls inside the card instead of running off the screen.
+    const long = Array.from({length: 40}, (_v, i) => `${i + 1}. Step number ${i + 1} of a long answer, with some detail.\n`);
+    agent.answerChunks = long;
+    popup().open();
+    await sleep(600);
+    await search(popup()._stealer.entry, QUESTION);
+    popup()._stealer.entry.grab_key_focus();
+    await tapKey(Clutter.KEY_Return);
+    for (let i = 0; i < 60 && !answers().bubble.hintText; i++)
+        await sleep(100);
+    const bubble = answers().bubble;
+    for (let i = 0; i < 300 && bubble._revealId; i++)    // every word faded in
+        await sleep(100);
+    await sleep(300);
+    const adjustment = bubble._adjustment;
+    const limit = popup().maxAnswerHeight();
+    check('a long answer scrolls within its limit', bubble._scroll.height <= limit + 1 &&
+        adjustment.upper > adjustment.page_size, [bubble._scroll.height, limit, adjustment.upper, adjustment.page_size]);
+    check('it follows the newest words while they stream in',
+        adjustment.value >= adjustment.upper - adjustment.page_size - 4, [adjustment.value, adjustment.upper]);
+    await saveScreenshot('long-answer.png');
+    await tapKey(Clutter.KEY_Page_Up);
+    check('Page Up scrolls the answer, Spotlight stays open', popup()._visible &&
+        adjustment.value < adjustment.upper - adjustment.page_size - 4, adjustment.value);
+    agent.answerChunks = ['It is due ', 'on Friday.'];
     popup().close();
     await sleep(500);
 

@@ -29,8 +29,10 @@
   milliseconds per keystroke; a "?" at either end always asks, and without the agent
   Spotlight falls back to question words. Enter asks
   the genolabs agent, and its answer streams into the same bubble ScreenVision speaks in,
-  where the results were: Enter copies it, its chips open the memories it drew on, Esc goes
-  back to the results. Setting up the agent's model: genolabs-os `docs/BRAIN.md`.
+  where the results were, formatted (bold, lists, code) and scrolling when long. It is a
+  conversation: type over the question for a follow-up and press Enter; earlier turns stay
+  above. Enter on the unchanged question copies the answer, its chips open the memories it
+  drew on, and Esc goes back to the results. Setting up the agent's model: genolabs-os `docs/BRAIN.md`.
 - **Super+Space**, like Cmd+Space on a Mac (see below if it is taken).
 - Keyboard activation fix: arrowing to any result and pressing Enter now always runs it.
 - Development setup: unit tests, a headless end-to-end smoke test, ESLint and CI.

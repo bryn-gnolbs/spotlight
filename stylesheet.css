@@ -176,6 +176,22 @@
     color: #ffffff;
 }
 
+.sv-bubble-scroll {
+    -st-vfade-offset: 24px;
+}
+
+.sv-bubble-history {
+    font-size: 10pt;
+    line-height: 1.3;
+    color: rgba(245, 245, 247, 0.55);
+    padding-bottom: 10px;
+}
+
+.sv-bubble-hint {
+    font-size: 9pt;
+    color: rgba(245, 245, 247, 0.45);
+}
+
 .sv-bubble-actions {
     padding-top: 4px;
     spacing: 8px;
@@ -233,6 +249,11 @@
 
 .spotlight-container.theme-light .sv-bubble-body {
     color: #1d1d1f;
+}
+
+.spotlight-container.theme-light .sv-bubble-history,
+.spotlight-container.theme-light .sv-bubble-hint {
+    color: rgba(29, 29, 31, 0.55);
 }
 
 .spotlight-container.theme-light .sv-bubble-chip {

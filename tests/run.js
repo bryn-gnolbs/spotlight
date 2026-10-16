@@ -9,6 +9,7 @@ import System from 'system';
 import {AgentClient} from '../lib/agent/client.js';
 import {OFFER_AT, asksExplicitly, looksLikeQuestion, offersAsk, questionText} from '../lib/ask/question.js';
 import {waitUnlessCancelled} from '../lib/core/timing.js';
+import {markdownMarkup, parseMarkdown, plainText, renderMarkdown} from '../lib/ui/markdown.js';
 import {displayNumber, evaluate, plainNumber} from '../lib/math/expression.js';
 import {
     isWebLink, linkHost, memoryDetails, memoryName, memoryRows, memoryUsage, parseMemories,
@@ -419,6 +420,67 @@ test('AgentClient asks and follows the answer as it streams', async () => {
     } finally {
         stop();
         agent.stop();
+    }
+    await waitFor(() => !client.available);
+    client.destroy();
+});
+
+// Answers in Markdown -----------------------------------------------------------
+
+test('markdownMarkup formats what the assistant writes, escaping the rest', () => {
+    assertEqual(markdownMarkup('Use **Settings** and `a <b>`'), 'Use <b>Settings</b> and <tt>a &lt;b&gt;</tt>');
+    assertEqual(markdownMarkup('- one\n- two'), '•  one\n•  two');
+    assertEqual(markdownMarkup('1. first'), '1. first');
+    assertEqual(markdownMarkup('```bash\nls -la\n```\nafter'), '<tt>ls -la\n</tt>after');
+    assertEqual(markdownMarkup('see [docs](https://x.y)'), 'see <u>docs</u>');
+    assertEqual(markdownMarkup('*soft* but 5 * 3 = 15'), '<i>soft</i> but 5 * 3 = 15');
+    assertEqual(markdownMarkup('## Heading'), '<b>Heading</b>');
+    assertEqual(markdownMarkup('**bold `code` inside**'), '<b>bold </b><b><tt>code</tt></b><b> inside</b>');
+});
+
+test('markdown still streaming: unclosed bold and code run to the line end', () => {
+    assertEqual(markdownMarkup('half **writ'), 'half <b>writ</b>');
+    assertEqual(markdownMarkup('run `sudo ap'), 'run <tt>sudo ap</tt>');
+});
+
+test('renderMarkdown fades each word in and leaves out words not started', () => {
+    const tokens = [{text: 'Use ', start: 0}, {text: '**this**', start: 100}, {text: ' now', start: 1000}];
+    const {markup, done} = renderMarkdown(tokens, 210, 220);
+    assertEqual(done, false);
+    assertEqual(markup, '<span alpha="95%">Use </span><span alpha="50%"><b>this</b></span>');
+    assertEqual(renderMarkdown(tokens, 5000, 220), {markup: 'Use <b>this</b> now', done: true});
+});
+
+test('plainText is what Copy puts on the clipboard', () => {
+    assertEqual(plainText('**Open** `x`:\n- [docs](https://x.y)\n```\nls\n```'),
+        'Open x:\n•  docs (https://x.y)\nls\n'.replace('•  ', '• '));
+    assertEqual(parseMarkdown('').length, 0);
+});
+
+test('AgentClient converses, and an older agent still answers', async () => {
+    const client = new AgentClient();
+    assertEqual(await client.converse('anything'), null);   // no agent
+    const agent = new FakeAgent([]);
+    await agent.start();
+    try {
+        await waitFor(() => client.available);
+        const first = await client.converse('when is it due?');
+        assertEqual(first, {askId: 'ask1', conversation: 'talk1'});
+        const next = await client.converse('and how much?', first.conversation);
+        assertEqual(next.conversation, 'talk1');
+        assertEqual(agent.conversed.map(r => r.conversation), [null, 'talk1']);
+    } finally {
+        agent.stop();
+    }
+    await waitFor(() => !client.available);
+    const old = new FakeAgent([], {withConverse: false});
+    await old.start();
+    try {
+        await waitFor(() => client.available);
+        assertEqual(await client.converse('hi'), {askId: 'ask1', conversation: null});
+        assertEqual(old.asked, ['hi']);
+    } finally {
+        old.stop();
     }
     await waitFor(() => !client.available);
     client.destroy();
