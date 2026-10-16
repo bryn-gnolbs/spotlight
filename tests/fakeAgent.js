@@ -28,9 +28,14 @@ const ASK_XML = `
     <signal name="AnswerStatus"><arg type="s" name="ask_id"/><arg type="s" name="status"/></signal>
     <signal name="AnswerText"><arg type="s" name="ask_id"/><arg type="s" name="text"/></signal>
     <signal name="AnswerDone"><arg type="s" name="ask_id"/><arg type="s" name="answer_json"/></signal>`;
-const agentXml = withUsed => `
+const CONVERSE_XML = `
+    <method name="Converse">
+      <arg type="s" name="request_json" direction="in"/>
+      <arg type="s" name="reply_json" direction="out"/>
+    </method>`;
+const agentXml = (withUsed, withConverse) => `
 <node>
-  <interface name="net.genolabs.Agent1">${withUsed ? ASK_XML : ''}
+  <interface name="net.genolabs.Agent1">${withUsed ? ASK_XML : ''}${withUsed && withConverse ? CONVERSE_XML : ''}
     <method name="Status">
       <arg type="s" name="status_json" direction="out"/>
     </method>
@@ -47,10 +52,12 @@ export class FakeAgent {
      * @param {object[]} memories - what Search answers from
      * @param {object} [options]
      * @param {boolean} [options.withUsed] - false plays an agent from before Used
+     * @param {boolean} [options.withConverse] - false plays an agent from before conversations
      */
-    constructor(memories, {withUsed = true} = {}) {
+    constructor(memories, {withUsed = true, withConverse = true} = {}) {
         this.memories = memories;
         this.withUsed = withUsed;
+        this.withConverse = withConverse;
         // Set to a string to add it to every Search result as "retrieval", like
         // the long-term memory does; null answers like the offline fallback.
         this.retrieval = null;
@@ -67,6 +74,8 @@ export class FakeAgent {
         // Every Ask as its question, and every CancelAsk id.
         this.asked = [];
         this.cancelledAsks = [];
+        // Every Converse request, parsed ({question, conversation}).
+        this.conversed = [];
         // Every Intent call's text. Intent says a text is for the assistant when
         // it starts with one of these words (the real agent uses a model).
         this.intents = [];
@@ -103,7 +112,14 @@ export class FakeAgent {
             : {intent: 'find', confidence: 0.9, assistant: 0.1, by: 'model'});
     }
 
-    Ask(question) {
+    Converse(requestJson) {
+        const request = JSON.parse(requestJson);
+        this.conversed.push(request);
+        const conversation = request.conversation ?? `talk${this.conversed.length}`;
+        return JSON.stringify({ask_id: this.Ask(request.question, conversation), conversation});
+    }
+
+    Ask(question, conversation = null) {
         this.asked.push(question);
         const id = `ask${this.asked.length}`;
         const signals = [['AnswerStatus', [id, 'Searching memories']]];
@@ -113,7 +129,7 @@ export class FakeAgent {
         const sources = this.memories.filter(m => words.some(w => m.text.toLowerCase().includes(w)));
         signals.push(['AnswerDone', [id, JSON.stringify({
             text: this.answerError ? '' : this.answerChunks.join(''), sources: sources.slice(0, 3),
-            model: 'fake', error: this.answerError, cancelled: false,
+            model: 'fake', error: this.answerError, cancelled: false, conversation,
         })]]);
         // After the reply, one signal at a time, like a model writing.
         let delay = 30;
@@ -136,7 +152,7 @@ export class FakeAgent {
     /** Export on the session bus and own the agent's name. */
     start() {
         const connection = Gio.DBus.session;
-        this._exported = Gio.DBusExportedObject.wrapJSObject(agentXml(this.withUsed), this);
+        this._exported = Gio.DBusExportedObject.wrapJSObject(agentXml(this.withUsed, this.withConverse), this);
         this._exported.export(connection, OBJECT_PATH);
         return new Promise((resolve, reject) => {
             this._ownerId = Gio.bus_own_name_on_connection(connection, BUS_NAME,
