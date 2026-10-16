@@ -8,6 +8,7 @@ import {CalculatorDeduplicator, MathSearchProvider, addMathSection} from './lib/
 import {MemorySearchProvider, addMemoriesSection} from './lib/memories/provider.js';
 import {AskController} from './lib/ask/controller.js';
 import {AskSearchProvider, addAskSection} from './lib/ask/provider.js';
+import {Notifications} from './lib/notify/notifications.js';
 
 // Entry point. Keeping enable and disable adjacent makes the cleanup symmetry obvious at a glance.
 export default class SpotlightExtension extends Extension {
@@ -30,6 +31,7 @@ export default class SpotlightExtension extends Extension {
             classify: (text, cancellable) => this._answers.intent(text, cancellable),
         });
         addAskSection(this._popup.searchResults, this._ask);
+        this._notifications = new Notifications();
         this._popup.keepOpenWhenClicking(this._ask.display);
         this._keybindingManager = new KeybindingManager();
         this._keybindingManager.enable();
@@ -64,6 +66,8 @@ export default class SpotlightExtension extends Extension {
         this._settings.disconnectObject(this);
         this._keybindingManager.disable();
         this._keybindingManager = null;
+        this._notifications.destroy();
+        this._notifications = null;
         removeSection(this._popup.searchResults, this._ask);
         this._ask.destroy();
         this._ask = null;

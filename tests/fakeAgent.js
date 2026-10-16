@@ -32,6 +32,15 @@ const CONVERSE_XML = `
     <method name="Converse">
       <arg type="s" name="request_json" direction="in"/>
       <arg type="s" name="reply_json" direction="out"/>
+    </method>
+    <signal name="Notify"><arg type="s" name="bubble_json"/></signal>
+    <method name="NotificationShown">
+      <arg type="s" name="id" direction="in"/>
+    </method>
+    <method name="NotificationReaction">
+      <arg type="s" name="id" direction="in"/>
+      <arg type="s" name="reaction" direction="in"/>
+      <arg type="b" name="known" direction="out"/>
     </method>`;
 const agentXml = (withUsed, withConverse) => `
 <node>
@@ -80,6 +89,9 @@ export class FakeAgent {
         // it starts with one of these words (the real agent uses a model).
         this.intents = [];
         this.assistantWords = ['when', 'what', 'turn', 'set'];
+        // Notifications: ids Spotlight confirmed showing, and [id, reaction] pairs.
+        this.notificationsShown = [];
+        this.reactions = [];
         this._exported = null;
         this._ownerId = 0;
     }
@@ -142,6 +154,20 @@ export class FakeAgent {
             delay += 30;
         }
         return id;
+    }
+
+    /** Speak unasked, like the mind: emits Notify with this bubble. */
+    notify(bubble) {
+        this._exported?.emit_signal('Notify', new GLib.Variant('(s)', [JSON.stringify(bubble)]));
+    }
+
+    NotificationShown(id) {
+        this.notificationsShown.push(id);
+    }
+
+    NotificationReaction(id, reaction) {
+        this.reactions.push([id, reaction]);
+        return true;
     }
 
     CancelAsk(id) {

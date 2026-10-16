@@ -393,6 +393,26 @@ async function run() {
     await pressKeys([Clutter.KEY_Super_L, Clutter.KEY_space]);
     check('Super+Space toggles closed', !popup()._visible);
 
+    // The mind speaks unasked: a notification in the top-right corner, chips as answers.
+    const notes = () => ext()._notifications;
+    agent.notify({id: '7', headline: 'Call Sam', body: 'You asked to be reminded at 5.',
+        chips: ['Done', 'In an hour'], urgency: 1, sound: false, sticky: false});
+    await sleep(800);
+    const note = notes().bubble;
+    const [noteX, noteY] = note?.get_transformed_position() ?? [0, 0];
+    check('a notification shows in the bubble', note?.visible && notes().current?.id === '7', notes().current);
+    check('it sits in the top-right corner', noteX > global.stage.width / 2 && noteY < global.stage.height / 3,
+        [noteX, noteY]);
+    check('the agent is told it is on screen', JSON.stringify(agent.notificationsShown) === '["7"]',
+        agent.notificationsShown);
+    check('its chips are the answers, plus Dismiss',
+        JSON.stringify(note._chips.map(c => c.label)) === '["Done","In an hour","Dismiss"]', note._chips.map(c => c.label));
+    await saveScreenshot('notification.png');
+    note._chips[1].emit('clicked', 1);
+    await sleep(500);
+    check('a chip answers and closes it', JSON.stringify(agent.reactions) === '[["7","In an hour"]]' &&
+        notes().current === null, agent.reactions);
+
     // The agent going away is handled quietly.
     agent.stop();
     for (let i = 0; i < 50 && memories()._client.available; i++)
